@@ -7,9 +7,7 @@
 
 import Foundation
 
-protocol FavoriteNewsViewInputProtocol: AnyObject {
-    
-}
+protocol FavoriteNewsViewInputProtocol: AnyObject { }
 
 class FavoriteNewsPresenter {
     weak private var view: FavoriteNewsViewInputProtocol?
@@ -20,6 +18,4 @@ class FavoriteNewsPresenter {
         self.view = view
     }
 }
-extension FavoriteNewsPresenter: FavoriteNewsViewOutputProtocol {
-    
-}
+extension FavoriteNewsPresenter: FavoriteNewsViewOutputProtocol { }

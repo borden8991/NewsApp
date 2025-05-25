@@ -15,6 +15,7 @@ protocol MainViewInputProtocol: AnyObject {
     
     func failure(error: Error)
     
+    /// Показывает, что новость уже добавлена в избранное.
     func showAlreadyFavoriteMessage()
     
     }
