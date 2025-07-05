@@ -13,12 +13,15 @@ protocol MainViewInputProtocol: AnyObject {
     /// - Parameter news: Массив новостей.
     func updateScreen(with news: [News])
     
+    /// Не удалось обновить экран с новостями.
+    /// - Parameter error: Ошибка получения новостей.
     func failure(error: Error)
     
     /// Показывает, что новость уже добавлена в избранное.
     func showAlreadyFavoriteMessage()
     
-    }
+    func showError(_ error: NewsServiceError)
+}
 
 final class MainPresenter: MainViewOutputProtocol {
     
@@ -36,18 +39,18 @@ final class MainPresenter: MainViewOutputProtocol {
     
     func fetchNews() {
         self.service.fetchNews { [weak self] result in
-            switch result {
-            case .success(let articles):
-                self?.news = articles
-                DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let articles):
+                    self?.news = articles
                     self?.view?.updateScreen(with: self?.news ?? [])
+                case .failure(let error):
+                    self?.view?.showError(error)
                 }
-            case .failure(let error):
-                print(error.localizedDescription)
             }
         }
     }
-    
+
     func saveToFavorites(article: News) {
         if CoreDataManager.shared.isFavorite(article: article) {
             DispatchQueue.main.async {
@@ -59,7 +62,7 @@ final class MainPresenter: MainViewOutputProtocol {
         NotificationCenter.default.post(name: .didAddFavorite,
                                         object: nil)
     }
-    
+
     // MARK: - Init
     
     init(view: MainViewInputProtocol, service: NewsServiceProtocol) {
@@ -70,7 +73,11 @@ final class MainPresenter: MainViewOutputProtocol {
     //MARK: - MainViewOutputProtocol
     
     func viewDidLoad() {
+        self.fetchNews()
         self.view?.updateScreen(with: self.news)
+        NetworkMonitor.shared.didBecomeReachable = { [weak self] in
+            self?.fetchNews()
+        }
     }
     
     func viewDidAppear() {

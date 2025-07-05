@@ -28,7 +28,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         favoriteVC.tabBarItem = UITabBarItem(title: "Favorite",
                                              image: UIImage(systemName: "star"),
                                              tag: 1)
-        settingsVC.tabBarItem = UITabBarItem(title: "Настройки",
+        settingsVC.tabBarItem = UITabBarItem(title: "Settings",
                                              image: UIImage(systemName: "gearshape"),
                                              tag: 2)
         

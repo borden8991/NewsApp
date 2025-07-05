@@ -30,14 +30,14 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         title = "News"
         
-        self.presenter?.fetchNews()
         self.presenter?.viewDidLoad()
         print("view did load")
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(favoritesDidUpdate), name: .favoritesUpdated, object: nil)
         
         setupSortControl()
         setupTableView()
         setupSearchController()
-        
         updateTabBarBadge()
     }
     
@@ -49,8 +49,12 @@ class ViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         print("view did appear")
-        self.presenter?.viewDidAppear()
     }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     
     //MARK: - Private Methods
     
@@ -177,7 +181,47 @@ class ViewController: UIViewController {
             }
         }
     }
+    
+    func showError(_ error: NewsServiceError) {
+        handleError(error)
+    }
+    
+    private func handleError(_ error: NewsServiceError) {
+        var message: String
+        
+        switch error {
+        case .invalidURL:
+            message = "Не удалось сформировать запрос. Попробуйте позже."
+        case .requestFailed(let underlyingError):
+            message = "Ошибка загрузки: \(underlyingError.localizedDescription)"
+        case .noData:
+            message = "Ответ от сервера пустой."
+        case .decodingFailed:
+            message = "Ошибка обработки данных. Попробуйте обновить."
+        }
+        
+        let alert = UIAlertController(title: "Ошибка", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "ОК", style: .default))
+        present(alert, animated: true)
+        refreshControl.endRefreshing()
+    }
+    
+    @objc private func favoritesDidUpdate() {
+        guard let visibleIndexPaths = tableView.indexPathsForVisibleRows else { return }
+        for indexPath in visibleIndexPaths {
+            let article = isSearching ? filteredArticles[indexPath.row] : news[indexPath.row]
+            let isFavorite = CoreDataManager.shared.isFavorite(article: article)
+            if let cell = tableView.cellForRow(at: indexPath) as? NewsTableViewCell {
+                cell.updateFavoriteState(isFavorite: isFavorite)
+            }
+        }
+    }
 }
+
+extension Notification.Name {
+    static let favoritesUpdated = Notification.Name("favoritesUpdated")
+}
+
 
 //MARK: - UITableViewDataSource
 
@@ -198,12 +242,13 @@ extension ViewController: UITableViewDataSource {
         cell.favoriteButtonAction = {
             let selectedArticle = self.isSearching ? self.filteredArticles[indexPath.row] : self.news[indexPath.row]
             
-            if self.presenter?.isArticleFavorite(selectedArticle) != nil {
+            if isFavorite {
+                self.showAlreadyFavoriteMessage()
+            } else {
                 self.presenter?.saveToFavorites(article: selectedArticle)
+                self.showSavedAnimation()
+                tableView.reloadRows(at: [indexPath], with: .none)
             }
-            self.showSavedAnimation()
-            tableView.reloadRows(at: [indexPath],
-                                 with: .none)
         }
         return cell
     }
@@ -225,16 +270,24 @@ extension ViewController: UITableViewDelegate {
                                             title: "В избранное") { [weak self] _, _, completionHandler in
            guard let self else { return }
             let article = isSearching ? filteredArticles[indexPath.row] : news[indexPath.row]
-            self.presenter?.saveToFavorites(article: article)
-            self.showSavedAnimation()
-            updateScreen(with: news)
-            self.updateTabBarBadge()
+            let isFavorite = CoreDataManager.shared.isFavorite(article: article)
+            
+            if isFavorite {
+                self.showAlreadyFavoriteMessage()
+            } else {
+                self.presenter?.saveToFavorites(article: article)
+                self.showSavedAnimation()
+                //self.updateScreen(with: news)
+                self.updateTabBarBadge()
+                tableView.reloadRows(at: [indexPath], with: .none)
+            }
             completionHandler(true)
         }
         saveAction.backgroundColor = .systemBlue
         return UISwipeActionsConfiguration(actions: [saveAction])
     }
 }
+
 
 //MARK: - UISearchResultsUpdating
 

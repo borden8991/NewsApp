@@ -8,11 +8,11 @@
 import Foundation
 
 protocol MainViewOutputProtocol {
-
+    
     /// Вьюха была загружена
     func viewDidLoad()
     
-    /// <#Description#>
+    /// Вьюха появилась
     func viewDidAppear()
     
     func fetchNews()

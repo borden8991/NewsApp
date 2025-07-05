@@ -23,16 +23,17 @@ class FavoriteNewsViewController: UIViewController {
         title = "Favorite"
         setupTableView()
         fetchFavorites()
-        
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Clear",
-                                                            style: .plain,
-                                                            target: self,
-                                                            action: #selector(clearFavorites))
-        
+        setupNavigationButton()
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(fetchFavorites),
                                                name: .didAddFavorite,
                                                object: nil)
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchFavorites()
+        print("viewWillAppear")
     }
     
     //MARK: - Private Methods
@@ -80,6 +81,13 @@ class FavoriteNewsViewController: UIViewController {
         CoreDataManager.shared.deleteAllFavorites()
         fetchFavorites()
     }
+    
+    private func setupNavigationButton() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Clear",
+                                                            style: .plain,
+                                                            target: self,
+                                                            action: #selector(clearFavorites))
+    }
 }
 
 //MARK: - UITableViewDataSource, UITableViewDelegate
@@ -111,10 +119,14 @@ extension FavoriteNewsViewController: UITableViewDataSource, UITableViewDelegate
             guard let self else { return }
             let article = self.favoriteArticles[indexPath.row]
             CoreDataManager.shared.deleteFavorite(article: article)
-            self.fetchFavorites()
+            self.favoriteArticles.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+            self.updateBadge()
+            NotificationCenter.default.post(name: .favoritesUpdated, object: nil)
             completionHandler(true)
         }
         return UISwipeActionsConfiguration(actions: [deleteAction])
+        
     }
 }
 

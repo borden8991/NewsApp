@@ -8,25 +8,40 @@
 import Foundation
 
 protocol NewsServiceProtocol {
-    func fetchNews(completion: @escaping (Result<[News], Error>) -> Void)
+    func fetchNews(completion: @escaping (Result<[News], NewsServiceError>) -> Void)
 }
 
 class NewsService: NewsServiceProtocol {
     
-    func fetchNews(completion: @escaping (Result<[News], Error>) -> Void) {
-        let urlString = "https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=4d00a491c6304c209858f2c60cf9dc08"
-        guard let url = URL(string: urlString) else { return }
-        
+    func fetchNews(completion: @escaping (Result<[News], NewsServiceError>) -> Void) {
+        guard let url = URL(string: "https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=4d00a491c6304c209858f2c60cf9dc08") else {
+            completion(.failure(.invalidURL))
+            return
+        }
+
         URLSession.shared.dataTask(with: url) { data, _, error in
             if let error {
-                completion(.failure(error))
-            } else if let data {
+                completion(.failure(.requestFailed(error)))
+                return
+            }
+
+            guard let data else {
+                completion(.failure(.noData))
+                return
+            }
+
+            DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let newsResponse = try JSONDecoder().decode(NewsResponse.self, from: data)
-                    completion(.success(newsResponse.articles))
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode(NewsResponse.self, from: data)
+                    DispatchQueue.main.async {
+                        completion(.success(response.articles))
+                    }
                 } catch {
-                    completion(.failure(error))
-                } 
+                    DispatchQueue.main.async {
+                        completion(.failure(.decodingFailed))
+                    }
+                }
             }
         }.resume()
     }
